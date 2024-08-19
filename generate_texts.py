@@ -50,38 +50,11 @@ def parse_loc_file(file_path: str) -> dict[str, str]:
     return result
 
 
-def gather_items(config: ElementTree.ElementTree, key: str) -> list[tuple[int, str, str]]:
-    items: list[tuple[int, str, str]] = []
-
-    for relic in config.findall(f".//{key}"):
-        relic_elem_name = relic.find(".//visual//name")
-        relic_elem_descr = relic.find(".//visual//desc")
-        relid_elem_quality = relic.find(".//quality")
-        if relic_elem_name is None or relic_elem_descr is None or relid_elem_quality is None:
-            continue
-
-        related_hero = relic.find(".//related_hero")
-        if related_hero is not None and related_hero.text == __dummy_hero:
-            continue
-
-        items.append((int(relid_elem_quality.text), relic_elem_name.text, relic_elem_descr.text))
-
-    items.sort(key=lambda x: x[0], reverse=False)
-    return items
-
-
 def process_loc_string(locstr: str, energy_str) -> str:
     proc = locstr.replace(__nbsp, ' ')
     proc = proc.replace("[ICON_ENERGY]", energy_str)
     proc = __re_process_inline.sub(lambda m: f"<{m.group(2)}>", proc)
     return proc
-
-
-def process_item(item: PlayableItem, loc: dict[str, str]) -> (str, str):
-    name = loc[item.name]
-    desc = loc[item.descr]
-    desc = process_loc_string(desc, loc['_nrg_'])
-    return name, desc
 
 
 def safe_localize(loc_text: str, loc: dict[str, str]):
@@ -145,9 +118,9 @@ def process_items(items: list[PlayableItem], type_header: str, loc: dict[str, st
     def markdown_get_item_header():
         return [loc['_name_'], loc['_func_'], loc['_src_'], loc['_hero_']]
 
-    def markdown_item_to_row(relic: Relic):
-        return [loc[relic.name], process_loc_string(loc[relic.descr], loc['_nrg_']),
-                safe_localize(relic.get_item_source_loc(), loc), safe_localize(relic.related_hero, loc)]
+    def markdown_item_to_row(item: PlayableItem):
+        return [loc[item.name], process_loc_string(loc[item.descr], loc['_nrg_']),
+                safe_localize(item.get_item_source_loc(), loc), safe_localize(item.related_hero, loc)]
 
     markdown: list[str] = [f"# {type_header}"]
     type_str = sorted_items[0].get_item_type_str()
@@ -157,21 +130,14 @@ def process_items(items: list[PlayableItem], type_header: str, loc: dict[str, st
     def wiki_get_item_header():
         return [loc['_name_'], loc['_func_'], loc['_qty_'], loc['_src_'], loc['_hero_']]
 
-    def wiki_item_to_row(relic: Relic):
-        return [loc[relic.name], process_loc_string(loc[relic.descr], loc['_nrg_']),
-                str(relic.quality) + " " + loc[f"{type_str}_{relic.quality}"],
-                safe_localize(relic.get_item_source_loc(), loc), safe_localize(relic.related_hero, loc)]
+    def wiki_item_to_row(item: PlayableItem):
+        return [loc[item.name], process_loc_string(loc[item.descr], loc['_nrg_']),
+                str(item.quality) + " " + loc[f"{type_str}_{item.quality}"],
+                safe_localize(item.get_item_source_loc(), loc), safe_localize(item.related_hero, loc)]
 
     wiki = generate_wiki_table(sorted_items, wiki_get_item_header, wiki_item_to_row)
 
     return markdown, wiki
-
-
-def process_consumables(consumables: list[PlayableItem], loc: dict[str, str]) -> list[str]:
-    result: list[str] = ["# Consumables"]
-    result += generate_markdown_table(consumables, "CONSUMABLE_TYPE", loc)
-    return result
-
 
 def default_sorting_fn(x: PlayableItem):
     return -x.quality, x.name,
