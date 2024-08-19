@@ -1,4 +1,5 @@
 from typing import Sequence
+
 from table_utils import preprocess_table
 
 

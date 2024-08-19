@@ -2,8 +2,7 @@ import itertools
 import os
 import re
 import xml.etree.ElementTree as ElementTree
-
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Sequence
 
 from data_model import Relic, PlayableItem, Config
 from markdown_table import data_to_markdown_table
@@ -235,10 +234,6 @@ def run():
 
     with open(os.path.join("output", "consumables_wiki.txt"), "w", encoding="utf-8") as f:
         f.write("\n".join(consumables_wiki))
-
-    # relic_text = process_consumables(consumables, loc)
-    # with open("consumables.md", "w", encoding="utf-8") as f:
-    #     f.write("\n".join(relic_text))
 
     print("Done!")
 

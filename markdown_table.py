@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Sequence
+
 from table_utils import preprocess_table
 
 
@@ -59,15 +60,14 @@ def data_to_markdown_table(table: Sequence[Sequence[str]], align: Sequence[Align
     data_rows = [align_and_format_row(row, col_widths, align) for row in ltable[1:]]
 
     # Combine all parts into the final Markdown table
-    # markdown_table = "\n".join([header_row, separator_row] + data_rows)
     return [header_row, separator_row] + data_rows
 
 
 # Example usage
 data = [
     ["Header1", "Header2", "Header3"],
-    ["Row1Col1", "Row1Col2", "Long row Row1Col3"],
-    ["Row2Col1", "Row2Col2", "Row2Col3"],
+    ["Row1Col1", "Row1Col2", "Long Row1Col3"],
+    ["Long Row2Col1", "Row2Col2", "Row2Col3"],
     ["Row3Col1", "LongerValue", "Row3Col3"]
 ]
 align = [Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT]  # Alignment settings for each column
