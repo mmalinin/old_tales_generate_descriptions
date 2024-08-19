@@ -3,7 +3,7 @@ import re
 from winreg import *
 
 
-def get_steam_root_folder():
+def get_steam_root_folder() -> str:
     registry = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
 
     try:
@@ -40,20 +40,23 @@ def find_steam_libraries():
 
 def list_installed_games(library_paths):
     game_paths = []
+
     for path in library_paths:
         common_path = os.path.join(path, 'steamapps', 'common')
+
         if os.path.exists(common_path):
-            game_paths.extend(map(lambda p: os.path.join(common_path, p), os.listdir(common_path)))
+            curr_paths = map(lambda p: os.path.join(common_path, p), os.listdir(common_path))
+            game_paths.extend(curr_paths)
 
     return game_paths
 
 
 def find_game_path(game_name):
     library_paths = find_steam_libraries()
-    
+
     if library_paths is None:
         return None
-    
+
     games_list = list_installed_games(library_paths)
     for game in games_list:
         if os.path.basename(game) == game_name:
@@ -64,12 +67,12 @@ def find_game_path(game_name):
 if __name__ == '__main__':
     # Finding all Steam library paths
     lib_paths = find_steam_libraries()
-    
+
     if lib_paths:
         print("Steam library paths found:")
         for path in lib_paths:
             print(path)
-    
+
         # Listing installed games
         games = list_installed_games(lib_paths)
         print("\nInstalled games:")
