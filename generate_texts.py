@@ -1,19 +1,19 @@
 import itertools
 import os
 import re
+import sys
 import xml.etree.ElementTree as ElementTree
 from typing import Callable, Sequence
 
-from data_model import Relic, PlayableItem, Config
+from data_model import PlayableItem, Config
 from markdown_table import data_to_markdown_table
-from steam_utils import find_game_path
 from wiki_table import data_to_wiki_table
 
-__game_name = "Deathless Tales of Old Rus"
+game_name = "Deathless Tales of Old Rus"
+config_file_name = "config.xml"
+loc_file_ru = "locale_ru.xml"
 
-__steam_game_data_folder = "Data/StreamingAssets/configs/xml"
-__data_file = "config.xml"
-__loc_file_ru = "locale_ru.xml"
+__environ_path = "PATH"
 
 __dummy_hero = "HERO_DUMMY_UNIT_TEST"
 
@@ -37,9 +37,7 @@ loc_ru = {
 }
 
 
-def get_xml_file_path(steam_root_path: str, file_path: str):
-    path = os.path.join(steam_root_path, os.path.normpath(__steam_game_data_folder), file_path)
-    return path
+
 
 
 def parse_loc_file(file_path: str) -> dict[str, str]:
@@ -143,37 +141,40 @@ def default_sorting_fn(x: PlayableItem):
     return -x.quality, x.name,
 
 
-def run():
-    folder = find_game_path(__game_name)
+def generate_texts(path):
+    folder = path
 
     if folder is None:
         print("Could not find game installation folder.")
         exit(1)
-
-    print(f"Game found at path '{folder}'")
-
+    
+    if not os.path.exists(os.path.join(folder, config_file_name)):
+        print(f"Could not find {config_file_name} in the game folder.")
+    
     print("Parsing config.xml...")
-    config_xml = ElementTree.parse(get_xml_file_path(folder, __data_file))
+    config_xml = ElementTree.parse(os.path.join(folder, config_file_name))
     config = Config(config_xml.getroot())
 
     print("Parsing locale.xml...")
     loc = {}
     loc.update(loc_ru)  # set up special string for headers and stuff
-    loc.update(parse_loc_file(get_xml_file_path(folder, __loc_file_ru)))
+    loc.update(parse_loc_file(os.path.join(folder, loc_file_ru)))
 
     # filter out any test and dummy heroes
     only_real_heroes = set(filter(lambda x: x.is_hero and x.key != __dummy_hero and "_TEST" not in x.key, config.units))
 
-    # prepare hero unit names for relic reliations
+    # prepare hero unit names for relic relations
     for unit in filter(lambda x: x in only_real_heroes, config.units):
         loc[unit.key] = loc[unit.name]
 
     # prepare hero name filters
     only_real_hero_names = set(map(lambda x: x.key, only_real_heroes))
 
+
+    only_visible_relics = filter(lambda  x: not x.hidden, config.relics)
     # remove dummy relics
     only_real_relics = list(
-        filter(lambda x: True if x.related_hero is None else x.related_hero in only_real_hero_names, config.relics))
+        filter(lambda x: True if x.related_hero is None else x.related_hero in only_real_hero_names, only_visible_relics))
     relics = sorted(only_real_relics, key=default_sorting_fn)
 
     # remove dummy consumables
@@ -205,4 +206,17 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    
+    path = ''
+    if __environ_path in os.environ and os.path.exists(os.path.join(os.environ[__environ_path], config_file_name)):
+        path = os.environ[__environ_path]
+        print(f"Find config path from environment variable {__environ_path}")
+        
+    if sys.argv and os.path.exists(os.path.join(sys.argv[0], config_file_name)):
+        path = sys.argv[0]
+        print(f"Find config path from command line argument {sys.argv[0]}")
+        
+    if not path:
+        print("Config path not found")
+        exit(1)
+    generate_texts(path)

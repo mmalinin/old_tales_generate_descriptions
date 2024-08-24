@@ -45,6 +45,15 @@ class PlayableItem(BaseItem):
 
         elem_flag = element.find(".//flags")
         self.flag = elem_flag is not None
+        
+        is_hidden = False
+        # TODO: use better way to find single tag
+        for i in element:
+            if i.tag == "hidden_flag":
+                is_hidden = True
+                break
+        
+        self.hidden = is_hidden or self.source is None
 
     def get_item_type_str(self):
         return "PLAYABLE_ITEM_TYPE"
