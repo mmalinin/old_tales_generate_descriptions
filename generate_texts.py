@@ -13,7 +13,7 @@ game_name = "Deathless Tales of Old Rus"
 config_file_name = "config.xml"
 loc_file_ru = "locale_ru.xml"
 
-__environ_path = "PATH"
+__environ_path = "GAME_CONFIG_PATH"
 
 __dummy_hero = "HERO_DUMMY_UNIT_TEST"
 
@@ -210,11 +210,11 @@ if __name__ == '__main__':
     path = ''
     if __environ_path in os.environ and os.path.exists(os.path.join(os.environ[__environ_path], config_file_name)):
         path = os.environ[__environ_path]
-        print(f"Find config path from environment variable {__environ_path}")
+        print(f"Got config path from environment variable {__environ_path}")
         
     if sys.argv and os.path.exists(os.path.join(sys.argv[0], config_file_name)):
         path = sys.argv[0]
-        print(f"Find config path from command line argument {sys.argv[0]}")
+        print(f"Got config path from command line argument {sys.argv[0]}")
         
     if not path:
         print("Config path not found")
