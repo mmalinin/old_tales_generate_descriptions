@@ -1,3 +1,6 @@
+# NB! works only for Win
+# ToDo: fix for mac and linux
+
 import os
 import re
 from winreg import *
