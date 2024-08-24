@@ -2,16 +2,21 @@ import xml.etree.ElementTree as ElementTree
 from enum import Enum
 
 
+def safe_get_text(element: ElementTree.Element, path: str, default=None):
+    elem_node = element.find(path)
+    return elem_node.text if elem_node is not None else default
+
+
+def safe_get_int(element: ElementTree.Element, path: str, default=None):
+    value = safe_get_text(element, path)
+    return int(value) if value is not None else default
+
+
 class BaseItem:
     def __init__(self, element: ElementTree.Element):
-        elem_name = element.find(".//visual//name")
-        self.name = elem_name.text if elem_name is not None else None
-
-        elem_descr = element.find(".//visual//desc")
-        self.descr = elem_descr.text if elem_descr is not None else None
-
-        self.key = element.attrib["key"]
-        pass
+        self.name = safe_get_text(element, ".//visual//name")
+        self.descr = safe_get_text(element, ".//visual//desc")
+        self.key = element.attrib.get("key")
 
 
 class ItemQuality(Enum):
@@ -30,30 +35,15 @@ class ItemQuality(Enum):
 class PlayableItem(BaseItem):
     def __init__(self, element: ElementTree.Element):
         super().__init__(element)
+        self.quality = safe_get_int(element, ".//quality")
+        self.related_hero = safe_get_text(element, ".//related_hero")
+        self.quality_str = f"{self.get_item_type_str()}_{self.quality}" if self.get_item_type_str() else None
+        self.source = safe_get_int(element, ".//source")
+        self.flag = element.find(".//flags") is not None
+        self.hidden = self._is_hidden(element)
 
-        elem_quality = element.find(".//quality")
-        self.quality = int(elem_quality.text) if elem_quality is not None else None
-
-        elem_related_hero = element.find(".//related_hero")
-        self.related_hero = elem_related_hero.text if elem_related_hero is not None else None
-
-        item_type_str = self.get_item_type_str()
-        self.quality_str = f"{item_type_str}_{self.quality}" if item_type_str is not None else None
-
-        elem_source = element.find(".//source")
-        self.source = int(elem_source.text) if elem_source is not None else None
-
-        elem_flag = element.find(".//flags")
-        self.flag = elem_flag is not None
-        
-        is_hidden = False
-        # TODO: use better way to find single tag
-        for i in element:
-            if i.tag == "hidden_flag":
-                is_hidden = True
-                break
-        
-        self.hidden = is_hidden or self.source is None
+    def _is_hidden(self, element: ElementTree.Element):
+        return any(child.tag == "hidden_flag" for child in element) or self.source is None
 
     def get_item_type_str(self):
         return "PLAYABLE_ITEM_TYPE"
@@ -70,10 +60,7 @@ class PlayableItem(BaseItem):
             return "boss"
 
     def get_item_source_loc(self):
-        if self.source is not None:
-            return f"_{self.get_item_source_name()}_"
-        else:
-            return ""
+        return f"_{self.get_item_source_name()}_" if self.source is not None else ""
 
 
 class Relic(PlayableItem):
@@ -96,18 +83,10 @@ class Card(PlayableItem):
 
     def __init__(self, element: ElementTree.Element):
         super().__init__(element)
-
-        elem_cost = element.find(".//cost")
-        self.cost = int(elem_cost.text) if elem_cost is not None else None
-
-        elem_upgrade = element.find(".//upgrade")
-        self.upgrade = elem_upgrade.text if elem_upgrade is not None else None
-
-        elem_type = element.find(".//type")
-        self.card_type = int(elem_type.text) if elem_type is not None else None
-
-        elem_intention = element.find(".//visual//intention")
-        self.is_mob = elem_intention is not None
+        self.cost = safe_get_int(element, ".//cost")
+        self.upgrade = safe_get_text(element, ".//upgrade")
+        self.card_type = safe_get_int(element, ".//type")
+        self.is_mob = element.find(".//visual//intention") is not None
 
     def get_item_type_str(self):
         return "CARD_TYPE"
@@ -121,21 +100,11 @@ class Card(PlayableItem):
 class Unit(BaseItem):
     def __init__(self, element: ElementTree.Element):
         super().__init__(element)
-
-        elem_hp = element.find(".//hp")
-        self.hp = int(elem_hp.text) if elem_hp is not None else None
-
-        elem_attack = element.find(".//attack")
-        self.attack = int(elem_attack.text) if elem_attack is not None else None
-
-        elem_armor = element.find(".//armor")
-        self.armor = int(elem_armor.text) if elem_armor is not None else None
-
-        elem_nickname = element.find(".//visual//nickname")
-        self.nickname = elem_nickname.text if elem_nickname is not None else None
-
-        elem_hero = element.find(".//type//hero")
-        self.is_hero = elem_hero is not None
+        self.hp = safe_get_int(element, ".//hp")
+        self.attack = safe_get_int(element, ".//attack")
+        self.armor = safe_get_int(element, ".//armor")
+        self.nickname = safe_get_text(element, ".//visual//nickname")
+        self.is_hero = element.find(".//type//hero") is not None
 
 
 class Config:
@@ -144,7 +113,9 @@ class Config:
         self.consumables: list[Consumable] = []
         self.cards: list[Card] = []
         self.units: list[Unit] = []
+        self._load_items(root)
 
+    def _load_items(self, root: ElementTree.Element):
         for element in root:
             if element.tag == "relic":
                 self.relics.append(Relic(element))
