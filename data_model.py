@@ -38,7 +38,7 @@ class ItemQuality(Enum):
 class PlayableItem(BaseItem):
     def __init__(self, element: ElementTree.Element):
         super().__init__(element)
-        self.quality = safe_get_int(element, ".//quality")
+        self.quality = safe_get_int(element, ".//quality", -1)
         self.related_hero = safe_get_text(element, ".//related_hero")
         self.quality_str = f"{self.get_item_type_str()}_{self.quality}" if self.get_item_type_str() else None
         self.source = safe_get_int(element, ".//source")
@@ -88,7 +88,14 @@ class Card(PlayableItem):
         self.cost = safe_get_int(element, ".//cost")
         self.upgrade = safe_get_text(element, ".//upgrade")
         self.card_type = safe_get_int(element, ".//type")
-        self.is_mob = element.find(".//visual//intention") is not None
+        
+        damage_val = element.find(".//*damage")
+        self.damage = damage_val.attrib.get("value") if damage_val is not None else None
+    
+        armor_val = element.find(".//*add_armor")
+        self.armor = armor_val.attrib.get("value") if armor_val is not None else None
+        
+        self.is_mob = element.find(".//visual//intention") is not None or "_MOB_" in self.key
 
     def get_item_type_str(self):
         return "CARD_TYPE"

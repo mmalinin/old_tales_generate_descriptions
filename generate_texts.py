@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ElementTree
 from typing import Callable, Sequence, Dict
 
 from locale import Locale
-from data_model import PlayableItem, Config
+from data_model import PlayableItem, Config, Card
 from markdown_table import data_to_markdown_table
 from table_utils import data_to_wiki_table
 
@@ -21,9 +21,11 @@ loc_ru: dict[str, str] = {
     "": "",
     '_name_': "Название",
     '_func_': "Эффект",
-    '_qty_': "Редкость",
+    '_quality_': "Редкость",
     '_src_': "Источник",
     '_hero_': "Герой",
+    '_cost_': "Цена",
+    '_type_': "Тип",
     '_nrg_': "энергии",
     '_event_': "Событие",
     '_reward_': "Награда",
@@ -101,7 +103,7 @@ def process_wiki(sorted_items: list[PlayableItem], loc: Locale) -> list[str]:
     def wiki_get_item_header():
         return [loc['_name_'],
                 loc['_func_'],
-                loc['_qty_'],
+                loc['_quality_'],
                 loc['_src_'],
                 loc['_hero_']]
 
@@ -138,6 +140,66 @@ def write_items_to_files(items: list[PlayableItem], item_name: str, type_header:
 
     with open(os.path.join("output", f"{item_name}_wiki.txt"), "w", encoding="utf-8") as f:
         f.write("\n".join(wiki))
+
+
+def write_cards_to_files(cards: list[Card], loc: Locale):
+    def card_sort_key(x: Card):
+        return loc[x.related_hero], -x.quality, loc[x.name]
+
+    filtered = filter(lambda x: not x.is_mob, cards)
+    sorted_cards = sorted(filtered, key=card_sort_key)
+
+    hero_grouped_cards = {}
+    for hero, group in itertools.groupby(sorted_cards, key=lambda x: x.related_hero):
+        hero_grouped_cards[hero] = list(group)
+
+    for hero, cards in hero_grouped_cards.items():
+        card_header = f"Cards related to {loc[hero]}"
+        #cards_md = process_cards_to_markdown(cards, loc, card_header)
+        cards_wiki = process_cards_to_wiki(cards, loc)
+
+        # with open(os.path.join("output", f"cards_{hero}.md"), "w", encoding="utf-8") as f:
+        #     f.write("\n".join(cards_md))
+
+        hero_name = hero.replace('_HERO', '').lower() if hero else 'common'
+        with open(os.path.join("output", f"cards_{hero_name}_wiki.txt"), "w", encoding="utf-8") as f:
+            f.write("\n".join(cards_wiki))
+
+
+def process_cards_to_wiki(cards: list[Card], loc: Locale) -> list[str]:
+    def wiki_get_card_header():
+        return [loc['_name_'],
+                loc['_cost_'],
+                loc['_func_'], 
+                loc['_quality_'], 
+                loc['_type_'],
+                loc['_src_']]
+    
+    def process_descr(card):
+        descr = loc.process(card.descr)
+        if card.damage:
+            s = str(card.damage)
+            descr = descr.replace('[DAMAGE]', f'[DAMAGE:{s}]')
+        if card.armor:
+            s = str(card.armor)
+            descr = descr.replace('[ARMOR]', f'[ARMOR:{s}]')
+        return descr
+
+    def wiki_card_to_row(card: Card):
+        return [loc[card.name], 
+                card.cost,
+                process_descr(card), 
+                str(card.quality) if card.quality >=0 else '',
+                loc.process(card.get_card_type_name()),
+                loc[card.get_item_source_loc()]]
+
+    header = wiki_get_card_header()
+    rows: list[list[str]] = [header]
+
+    for item in cards:
+        rows.append(list(wiki_card_to_row(item)))
+
+    return data_to_wiki_table(rows, remove_empty_columns=True)
     
 
 def load_locale(base_strings: Dict[str, str], loc_file_name: str):
@@ -148,8 +210,8 @@ def load_locale(base_strings: Dict[str, str], loc_file_name: str):
     loc.append_xml(ElementTree.parse(loc_file_name))
 
     # special rules for processing descriptions
-    loc.add_rule(__nbsp, ' ')
-    loc.add_rule("[ICON_ENERGY]", loc["_nrg_"])
+    loc.add_replace_rule(__nbsp, ' ')
+    loc.add_replace_rule("[ICON_ENERGY]", loc["_nrg_"])
     return loc
 
 
@@ -175,6 +237,8 @@ def generate_texts(config_path):
 
     write_items_to_files(config.visible_relics, "relics", "Relics", loc)    
     write_items_to_files(config.visible_consumables, "consumables", "Consumables", loc)
+    
+    write_cards_to_files(config.cards, loc)
 
     if not os.path.exists("output"):
         os.mkdir("output")

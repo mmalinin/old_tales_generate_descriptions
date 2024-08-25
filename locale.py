@@ -4,12 +4,12 @@ from xml.etree import ElementTree
 
 # Extract [k:v]
 # [TERM_ETHER:Spectral]. [TERM_UNPLAYABLE:Unplayable]. Lose 1 [ICON_ENERGY] when this card appears in your hand. 
-_inline_re = re.compile(r"\[(.+):(.+)]")
+_inline_re = re.compile(r"\[(\w+?):(.+?)]")
 
 class Locale:
     def __init__(self):
         self.strings: Dict[str, str] = {}
-        self.rules: list[tuple[str, str]] = []
+        self.replace_rules: list[tuple[str, str]] = []
         
     def __setitem__(self, key, value):
         self.strings[key] = value
@@ -38,7 +38,7 @@ class Locale:
         
         value = self.strings[key]
         
-        for rule in self.rules:
+        for rule in self.replace_rules:
             value = value.replace(rule[0], rule[1])
 
         # replace [k:v] with <v>
@@ -55,8 +55,8 @@ class Locale:
         for child in root.getroot():
             self.strings[child.attrib["key"]] = child.text
             
-    def add_rule(self, old:str, new: str):
-        self.rules.append((old, new))
+    def add_replace_rule(self, old:str, new: str):
+        self.replace_rules.append((old, new))
 
 
 if __name__ == '__main__':
