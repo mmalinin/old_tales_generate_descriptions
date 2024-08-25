@@ -1,5 +1,8 @@
 import xml.etree.ElementTree as ElementTree
 from enum import Enum
+from typing import TypeVar
+
+_dummy_hero = "HERO_DUMMY_UNIT_TEST"
 
 
 def safe_get_text(element: ElementTree.Element, path: str, default: str = None) -> str | None:
@@ -40,7 +43,7 @@ class PlayableItem(BaseItem):
         self.quality_str = f"{self.get_item_type_str()}_{self.quality}" if self.get_item_type_str() else None
         self.source = safe_get_int(element, ".//source")
         self.flag: bool = element.find(".//flags") is not None
-        self.hidden = any(child.tag == "hidden_flag" for child in element) or self.source is None
+        self.hidden = any(child.tag == "hidden_flag" for child in element)
 
     def get_item_type_str(self):
         return "PLAYABLE_ITEM_TYPE"
@@ -104,6 +107,13 @@ class Unit(BaseItem):
         self.is_hero = element.find(".//type//hero") is not None
 
 
+def default_item_sorting_fn(x: PlayableItem):
+    return -x.quality, x.name
+
+
+TPI = TypeVar("TPI", bound=PlayableItem)
+
+
 class Config:
     def __init__(self, root: ElementTree.Element):
         self.relics: list[Relic] = []
@@ -111,6 +121,7 @@ class Config:
         self.cards: list[Card] = []
         self.units: list[Unit] = []
         self._load_items(root)
+        self._process_items()
 
     def _load_items(self, root: ElementTree.Element):
         for element in root:
@@ -122,4 +133,26 @@ class Config:
                 self.cards.append(Card(element))
             elif element.tag == "unit":
                 self.units.append(Unit(element))
+        pass
+
+    @staticmethod
+    def _extract_visible_items(items: list[TPI], only_real_hero_names: set[str]) -> list[TPI]:
+        only_visible_items = filter(lambda x: not x.hidden, items)
+
+        only_non_test_items = (
+            filter(lambda x: True if x.related_hero is None else x.related_hero in only_real_hero_names,
+                   only_visible_items))
+
+        return sorted(only_non_test_items, key=default_item_sorting_fn)
+
+    def _process_items(self):
+        # filter out any test and dummy heroes
+        self.only_real_heroes: set[Unit] = set(
+            filter(lambda x: x.is_hero and x.key != _dummy_hero and "_TEST" not in x.key, self.units))
+
+        # prepare hero name filters
+        only_real_hero_names = set(map(lambda x: x.key, self.only_real_heroes))
+
+        self.visible_relics: list[Relic] = self._extract_visible_items(self.relics, only_real_hero_names)
+        self.visible_consumables: list[Consumable] = self._extract_visible_items(self.consumables, only_real_hero_names)
         pass
