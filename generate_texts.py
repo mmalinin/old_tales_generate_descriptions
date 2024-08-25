@@ -144,10 +144,10 @@ def write_items_to_files(items: list[PlayableItem], item_name: str, type_header:
 
 def write_cards_to_files(cards: list[Card], loc: Locale):
     def card_sort_key(x: Card):
-        return loc[x.related_hero], -x.quality, loc[x.name]
+        return x.related_hero if x.related_hero else '', -x.quality, loc[x.name]
 
-    filtered = filter(lambda x: not x.is_mob, cards)
-    sorted_cards = sorted(filtered, key=card_sort_key)
+    hero_cards = filter(lambda x: not x.is_mob, cards)
+    sorted_cards = sorted(hero_cards, key=card_sort_key)
 
     hero_grouped_cards = {}
     for hero, group in itertools.groupby(sorted_cards, key=lambda x: x.related_hero):
@@ -155,13 +155,15 @@ def write_cards_to_files(cards: list[Card], loc: Locale):
 
     for hero, cards in hero_grouped_cards.items():
         card_header = f"Cards related to {loc[hero]}"
+        
+        hero_name = str(hero).lower().replace('hero_', '') if hero else 'common'
+        
         #cards_md = process_cards_to_markdown(cards, loc, card_header)
         cards_wiki = process_cards_to_wiki(cards, loc)
 
         # with open(os.path.join("output", f"cards_{hero}.md"), "w", encoding="utf-8") as f:
         #     f.write("\n".join(cards_md))
 
-        hero_name = hero.replace('_HERO', '').lower() if hero else 'common'
         with open(os.path.join("output", f"cards_{hero_name}_wiki.txt"), "w", encoding="utf-8") as f:
             f.write("\n".join(cards_wiki))
 

@@ -96,6 +96,8 @@ class Card(PlayableItem):
         self.armor = armor_val.attrib.get("value") if armor_val is not None else None
         
         self.is_mob = element.find(".//visual//intention") is not None or "_MOB_" in self.key
+        
+        self.is_hero = "_HERO_" in self.key
 
     def get_item_type_str(self):
         return "CARD_TYPE"
