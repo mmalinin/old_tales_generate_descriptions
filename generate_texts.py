@@ -2,7 +2,7 @@ import itertools
 import os
 import sys
 import xml.etree.ElementTree as ElementTree
-from typing import Callable, Sequence, Dict, Any
+from typing import Callable, Sequence, Dict
 
 from locale import Locale
 from data_model import PlayableItem, Config
@@ -78,11 +78,16 @@ def process_markdown(sorted_items, loc, type_header) -> list[str]:
 
     # markdown is split into rarity sections
     def markdown_get_item_header():
-        return [loc['_name_'], loc['_func_'], loc['_src_'], loc['_hero_']]
+        return [loc['_name_'],
+                loc['_func_'],
+                loc['_src_'],
+                loc['_hero_']]
 
     def markdown_item_to_row(item: PlayableItem):
-        return [loc[item.name], loc.process(item.descr),
-                loc[item.get_item_source_loc()], loc[item.related_hero]]
+        return [loc[item.name],
+                loc.process(item.descr),
+                loc[item.get_item_source_loc()],
+                loc[item.related_hero]]
 
     markdown: list[str] = [f"# {type_header}"]
     markdown += items_to_markdown_table(sorted_items, markdown_get_item_header, markdown_item_to_row, type_str, loc)
@@ -94,12 +99,19 @@ def process_wiki(sorted_items: list[PlayableItem], loc: Locale) -> list[str]:
 
     # wiki is just a raw table
     def wiki_get_item_header():
-        return [loc['_name_'], loc['_func_'], loc['_qty_'], loc['_src_'], loc['_hero_']]
+        return [loc['_name_'],
+                loc['_func_'],
+                loc['_qty_'],
+                loc['_src_'],
+                loc['_hero_']]
 
     def wiki_item_to_row(item: PlayableItem):
-        return [loc[item.name], loc.process(item.descr),
+        return [loc[item.name],
+                loc.process(item.descr),
+                # add quality as a number for better sorting support
                 str(item.quality) + " " + loc[f"{type_str}_{item.quality}"],
-                loc[item.get_item_source_loc()], loc[item.related_hero]]
+                loc[item.get_item_source_loc()],
+                loc[item.related_hero]]
 
     wiki = items_to_wiki_table(sorted_items, wiki_get_item_header, wiki_item_to_row)
     return wiki
@@ -118,54 +130,54 @@ def process_items(items: list[PlayableItem], type_header: str, loc: Locale) -> t
     return markdown, wiki
 
 
+def write_items_to_files(items: list[PlayableItem], item_name: str, type_header: str, loc: Locale):
+    (markdown, wiki) = process_items(items, type_header, loc)
+    
+    with open(os.path.join("output", f"{item_name}.md"), "w", encoding="utf-8") as f:
+        f.write("\n".join(markdown))
+
+    with open(os.path.join("output", f"{item_name}_wiki.txt"), "w", encoding="utf-8") as f:
+        f.write("\n".join(wiki))
+    
+
 def load_locale(base_strings: Dict[str, str], loc_file_name: str):
     loc = Locale()
-    loc.append_dict(base_strings)  # set up special string for headers and stuff
+
+    # set up special string for headers and stuff
+    loc.append_dict(base_strings)
     loc.append_xml(ElementTree.parse(loc_file_name))
+
+    # special rules for processing descriptions
     loc.add_rule(__nbsp, ' ')
     loc.add_rule("[ICON_ENERGY]", loc["_nrg_"])
     return loc
 
 
-def generate_texts(path):
-    folder = path
-
-    if folder is None:
+def generate_texts(config_path):
+    if config_path is None:
         print("Could not find game installation folder.")
         exit(1)
 
-    if not os.path.exists(os.path.join(folder, config_file_name)):
+    if not os.path.exists(os.path.join(config_path, config_file_name)):
         print(f"Could not find {config_file_name} in the game folder.")
 
     print("Parsing config.xml...")
-    config_xml = ElementTree.parse(os.path.join(folder, config_file_name))
+    config_xml = ElementTree.parse(os.path.join(config_path, config_file_name))
     config = Config(config_xml.getroot())
 
     print("Parsing locale.xml...")
-    loc = load_locale(loc_ru, os.path.join(folder, loc_file_ru))
+    loc = load_locale(loc_ru, os.path.join(config_path, loc_file_ru))
 
     print("Processing relics and consumables...")
-
     # prepare hero unit names for relic relations
     for unit in filter(lambda x: x in config.only_real_heroes, config.units):
         loc[unit.key] = loc[unit.name]
 
+    write_items_to_files(config.visible_relics, "relics", "Relics", loc)    
+    write_items_to_files(config.visible_consumables, "consumables", "Consumables", loc)
+
     if not os.path.exists("output"):
         os.mkdir("output")
-
-    (relic_markdown, relic_wiki) = process_items(config.visible_relics, "Relics", loc)
-    with open(os.path.join("output", "relics.md"), "w", encoding="utf-8") as f:
-        f.write("\n".join(relic_markdown))
-
-    with open(os.path.join("output", "relics_wiki.txt"), "w", encoding="utf-8") as f:
-        f.write("\n".join(relic_wiki))
-
-    (consumables_markdown, consumables_wiki) = process_items(config.visible_consumables, "Consumables", loc)
-    with open(os.path.join("output", "consumables.md"), "w", encoding="utf-8") as f:
-        f.write("\n".join(consumables_markdown))
-
-    with open(os.path.join("output", "consumables_wiki.txt"), "w", encoding="utf-8") as f:
-        f.write("\n".join(consumables_wiki))
 
     print("Done!")
 

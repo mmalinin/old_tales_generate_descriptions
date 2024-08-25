@@ -56,6 +56,8 @@ class PlayableItem(BaseItem):
                 return "reward"
         elif self.source == 1:
             return "shop"
+        elif self.source == 2:
+            return "event"
         elif self.source == 3:
             return "boss"
 
@@ -108,7 +110,7 @@ class Unit(BaseItem):
 
 
 def default_item_sorting_fn(x: PlayableItem):
-    return -x.quality, x.name
+    return -x.quality, x.key
 
 
 TPI = TypeVar("TPI", bound=PlayableItem)
@@ -137,11 +139,22 @@ class Config:
 
     @staticmethod
     def _extract_visible_items(items: list[TPI], only_real_hero_names: set[str]) -> list[TPI]:
-        only_visible_items = filter(lambda x: not x.hidden, items)
+        only_visible_items = list(filter(lambda x: not x.hidden, items))
+        only_visible_set = set(only_visible_items)
+        
+        only_non_hidden_items = list(filter(lambda x: not( "_HIDDEN_" in x.key), only_visible_items))
+        only_non_hidden_set = set(only_non_hidden_items)
+        
+        incorrect_non_hidden =  only_visible_set.difference(only_non_hidden_set)
+        
+        if incorrect_non_hidden:
+            print("Items without hidden flag: ", end='')
+            incorrect_names = map(lambda x: x.key, sorted(incorrect_non_hidden, key=lambda x: x.key))
+            print(', '.join(incorrect_names))
 
         only_non_test_items = (
             filter(lambda x: True if x.related_hero is None else x.related_hero in only_real_hero_names,
-                   only_visible_items))
+                   only_non_hidden_items))
 
         return sorted(only_non_test_items, key=default_item_sorting_fn)
 

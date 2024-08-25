@@ -2,7 +2,8 @@ import re
 from typing import Dict
 from xml.etree import ElementTree
 
-## [TERM_ETHER:Spectral]. [TERM_UNPLAYABLE:Unplayable]. Lose 1 [ICON_ENERGY] when this card appears in your hand.]
+# Extract [k:v]
+# [TERM_ETHER:Spectral]. [TERM_UNPLAYABLE:Unplayable]. Lose 1 [ICON_ENERGY] when this card appears in your hand. 
 _inline_re = re.compile(r"\[(.+):(.+)]")
 
 class Locale:
@@ -40,6 +41,7 @@ class Locale:
         for rule in self.rules:
             value = value.replace(rule[0], rule[1])
 
+        # replace [k:v] with <v>
         value = _inline_re.sub(lambda m: f"<{m.group(2)}>", value)
         return value
     
