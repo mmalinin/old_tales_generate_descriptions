@@ -2,12 +2,12 @@ import xml.etree.ElementTree as ElementTree
 from enum import Enum
 
 
-def safe_get_text(element: ElementTree.Element, path: str, default=None):
+def safe_get_text(element: ElementTree.Element, path: str, default: str = None) -> str | None:
     elem_node = element.find(path)
     return elem_node.text if elem_node is not None else default
 
 
-def safe_get_int(element: ElementTree.Element, path: str, default=None):
+def safe_get_int(element: ElementTree.Element, path: str, default: int = None) -> int | None:
     value = safe_get_text(element, path)
     return int(value) if value is not None else default
 
@@ -39,11 +39,8 @@ class PlayableItem(BaseItem):
         self.related_hero = safe_get_text(element, ".//related_hero")
         self.quality_str = f"{self.get_item_type_str()}_{self.quality}" if self.get_item_type_str() else None
         self.source = safe_get_int(element, ".//source")
-        self.flag = element.find(".//flags") is not None
-        self.hidden = self._is_hidden(element)
-
-    def _is_hidden(self, element: ElementTree.Element):
-        return any(child.tag == "hidden_flag" for child in element) or self.source is None
+        self.flag: bool = element.find(".//flags") is not None
+        self.hidden = any(child.tag == "hidden_flag" for child in element) or self.source is None
 
     def get_item_type_str(self):
         return "PLAYABLE_ITEM_TYPE"

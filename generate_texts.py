@@ -3,11 +3,12 @@ import os
 import re
 import sys
 import xml.etree.ElementTree as ElementTree
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Dict, Any
 
+from locale import Locale
 from data_model import PlayableItem, Config
 from markdown_table import data_to_markdown_table
-from wiki_table import data_to_wiki_table
+from table_utils import data_to_wiki_table
 
 game_name = "Deathless Tales of Old Rus"
 config_file_name = "config.xml"
@@ -22,7 +23,7 @@ __re_process_inline = re.compile(r"\[(.+):(.+)]")
 
 __nbsp = "\xA0"
 
-loc_ru = {
+loc_ru: dict[str, str] = {
     "": "",
     '_name_': "Название",
     '_func_': "Эффект",
@@ -37,42 +38,14 @@ loc_ru = {
 }
 
 
-
-
-
-def parse_loc_file(file_path: str) -> dict[str, str]:
-    result: dict[str, str] = {}
-    xml = ElementTree.parse(file_path)
-    for child in xml.getroot():
-        result[child.attrib["key"]] = child.text
-    return result
-
-
-def process_loc_string(locstr: str, energy_str) -> str:
-    proc = locstr.replace(__nbsp, ' ')
-    proc = proc.replace("[ICON_ENERGY]", energy_str)
-    proc = __re_process_inline.sub(lambda m: f"<{m.group(2)}>", proc)
-    return proc
-
-
-def safe_localize(loc_text: str, loc: dict[str, str]):
-    if loc_text is None:
-        return ""
-
-    if loc_text not in loc:
-        return loc_text
-
-    return loc[loc_text] if loc_text else ""
-
-
 def generate_markdown_table(items: list[PlayableItem],
                             get_item_header: Callable[[], Sequence[str]],
                             item_to_row: Callable[[PlayableItem], Sequence[str]],
-                            item_type_str: str, loc: dict[str, str]) -> list[str]:
+                            item_type_str: str, loc: Locale) -> list[str]:
     result: list[str] = []
 
     def item_sort_key(x: PlayableItem):
-        return -x.quality, loc[x.name], safe_localize(x.related_hero, loc)
+        return -x.quality, loc[x.name], loc[x.related_hero]
 
     items.sort(key=item_sort_key, reverse=False)
 
@@ -106,9 +79,9 @@ def generate_wiki_table(items: list[PlayableItem],
     return data_to_wiki_table(rows, remove_empty_columns=True)
 
 
-def process_items(items: list[PlayableItem], type_header: str, loc: dict[str, str]) -> tuple[list[str], list[str]]:
+def process_items(items: list[PlayableItem], type_header: str, loc: Locale) -> tuple[list[str], list[str]]:
     def item_sort_key(x: PlayableItem):
-        return -x.quality, loc[x.name], safe_localize(x.related_hero, loc)
+        return -x.quality, loc[x.name], loc[x.related_hero]
 
     sorted_items = sorted(items, key=item_sort_key, reverse=False)
 
@@ -117,8 +90,8 @@ def process_items(items: list[PlayableItem], type_header: str, loc: dict[str, st
         return [loc['_name_'], loc['_func_'], loc['_src_'], loc['_hero_']]
 
     def markdown_item_to_row(item: PlayableItem):
-        return [loc[item.name], process_loc_string(loc[item.descr], loc['_nrg_']),
-                safe_localize(item.get_item_source_loc(), loc), safe_localize(item.related_hero, loc)]
+        return [loc[item.name], loc.process(item.descr),
+                loc[item.get_item_source_loc()], loc[item.related_hero]]
 
     markdown: list[str] = [f"# {type_header}"]
     type_str = sorted_items[0].get_item_type_str()
@@ -129,9 +102,9 @@ def process_items(items: list[PlayableItem], type_header: str, loc: dict[str, st
         return [loc['_name_'], loc['_func_'], loc['_qty_'], loc['_src_'], loc['_hero_']]
 
     def wiki_item_to_row(item: PlayableItem):
-        return [loc[item.name], process_loc_string(loc[item.descr], loc['_nrg_']),
+        return [loc[item.name], loc.process(item.descr),
                 str(item.quality) + " " + loc[f"{type_str}_{item.quality}"],
-                safe_localize(item.get_item_source_loc(), loc), safe_localize(item.related_hero, loc)]
+                loc[item.get_item_source_loc()], loc[item.related_hero]]
 
     wiki = generate_wiki_table(sorted_items, wiki_get_item_header, wiki_item_to_row)
 
@@ -139,6 +112,15 @@ def process_items(items: list[PlayableItem], type_header: str, loc: dict[str, st
 
 def default_sorting_fn(x: PlayableItem):
     return -x.quality, x.name,
+
+
+def load_locale(base_strings: Dict[str, str], loc_file_name: str):
+    loc = Locale()
+    loc.append_dict(base_strings)  # set up special string for headers and stuff
+    loc.append_xml(ElementTree.parse(loc_file_name))
+    loc.add_rule(__nbsp, ' ')
+    loc.add_rule("[ICON_ENERGY]", loc["_nrg_"])
+    return loc
 
 
 def generate_texts(path):
@@ -156,9 +138,7 @@ def generate_texts(path):
     config = Config(config_xml.getroot())
 
     print("Parsing locale.xml...")
-    loc = {}
-    loc.update(loc_ru)  # set up special string for headers and stuff
-    loc.update(parse_loc_file(os.path.join(folder, loc_file_ru)))
+    loc = load_locale(loc_ru, os.path.join(folder, loc_file_ru))
 
     # filter out any test and dummy heroes
     only_real_heroes = set(filter(lambda x: x.is_hero and x.key != __dummy_hero and "_TEST" not in x.key, config.units))

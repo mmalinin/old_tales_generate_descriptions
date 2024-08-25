@@ -25,7 +25,7 @@ def get_steam_root_folder() -> str:
         return install_path[0]
 
 
-def find_steam_libraries():
+def find_steam_libraries() -> list[str]:
     steam_config_path = os.path.join(get_steam_root_folder(), "config", "libraryfolders.vdf")
 
     if not os.path.exists(steam_config_path):
@@ -41,7 +41,7 @@ def find_steam_libraries():
     return library_paths
 
 
-def list_installed_games(library_paths):
+def list_installed_games(library_paths) -> list[str]:
     game_paths = []
 
     for path in library_paths:
@@ -54,7 +54,7 @@ def list_installed_games(library_paths):
     return game_paths
 
 
-def find_game_path(game_name):
+def find_game_path(game_name) -> str | None:
     library_paths = find_steam_libraries()
 
     if library_paths is None:

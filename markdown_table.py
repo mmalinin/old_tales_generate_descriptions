@@ -63,15 +63,15 @@ def data_to_markdown_table(table: Sequence[Sequence[str]], align: Sequence[Align
     return [header_row, separator_row] + data_rows
 
 
-# Example usage
-data = [
-    ["Header1", "Header2", "Header3"],
-    ["Row1Col1", "Row1Col2", "Long Row1Col3"],
-    ["Long Row2Col1", "Row2Col2", "Row2Col3"],
-    ["Row3Col1", "LongerValue", "Row3Col3"]
-]
-align = [Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT]  # Alignment settings for each column
-
 if __name__ == '__main__':
-    markdown_table = '\n'.join(data_to_markdown_table(data, align))
+    # Example usage
+    test_data: list[list[str]] = [
+        ["Header1", "Header2", "Header3"],
+        ["Row1Col1", "Row1Col2", "Long Row1Col3"],
+        ["Long Row2Col1", "Row2Col2", "Row2Col3"],
+        ["Row3Col1", "LongerValue", "Row3Col3"]
+    ]
+    test_align: list[Alignment] = [Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT]  # Alignment settings for each column
+    
+    markdown_table = '\n'.join(data_to_markdown_table(test_data, test_align))
     print(markdown_table)
