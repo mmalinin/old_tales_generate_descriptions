@@ -15,6 +15,15 @@ def safe_get_int(element: ElementTree.Element, path: str, default: int = None) -
     return int(value) if value is not None else default
 
 
+def safe_get_int_value(element: ElementTree.Element, path: str, default: int = None) -> int | None:
+    elem = element.find(path)
+    if elem is None:
+        return default
+
+    value = elem.attrib.get("value", default)
+    return int(value) if value is not None else default
+
+
 class BaseItem:
     def __init__(self, element: ElementTree.Element):
         self.name = safe_get_text(element, ".//visual//name")
@@ -88,15 +97,13 @@ class Card(PlayableItem):
         self.cost = safe_get_int(element, ".//cost")
         self.upgrade = safe_get_text(element, ".//upgrade")
         self.card_type = safe_get_int(element, ".//type")
-        
-        damage_val = element.find(".//*damage")
-        self.damage = damage_val.attrib.get("value") if damage_val is not None else None
-    
-        armor_val = element.find(".//*add_armor")
-        self.armor = armor_val.attrib.get("value") if armor_val is not None else None
-        
-        self.is_mob = element.find(".//visual//intention") is not None or "_MOB_" in self.key
-        
+
+        self.damage = safe_get_int_value(element, ".//*damage")
+        self.armor = safe_get_int_value(element, ".//*add_armor")
+
+        has_intention = element.find(".//visual//intention") is not None
+        self.is_mob = has_intention or "_MOB_" in self.key
+
         self.is_hero = "_HERO_" in self.key
 
     def get_item_type_str(self):
@@ -150,12 +157,12 @@ class Config:
     def _extract_visible_items(items: list[TPI], only_real_hero_names: set[str]) -> list[TPI]:
         only_visible_items = list(filter(lambda x: not x.hidden, items))
         only_visible_set = set(only_visible_items)
-        
-        only_non_hidden_items = list(filter(lambda x: not( "_HIDDEN_" in x.key), only_visible_items))
+
+        only_non_hidden_items = list(filter(lambda x: not ("_HIDDEN_" in x.key), only_visible_items))
         only_non_hidden_set = set(only_non_hidden_items)
-        
-        incorrect_non_hidden =  only_visible_set.difference(only_non_hidden_set)
-        
+
+        incorrect_non_hidden = only_visible_set.difference(only_non_hidden_set)
+
         if incorrect_non_hidden:
             print("Items without hidden flag: ", end='')
             incorrect_names = map(lambda x: x.key, sorted(incorrect_non_hidden, key=lambda x: x.key))
