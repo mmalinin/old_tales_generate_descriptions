@@ -10,6 +10,31 @@ class Alignment(Enum):
     RIGHT = 'right'
 
 
+def calculate_column_widths(table: Sequence[Sequence[str]]) -> list[int]:
+    num_cols = len(table[0])
+    col_widths = [0] * num_cols
+    for row in table:
+        for idx, cell in enumerate(row):
+            col_widths[idx] = max(col_widths[idx], len(cell))
+    return col_widths
+
+
+def get_alignment_separator(alignment: Alignment, width: int) -> str:
+    if alignment == Alignment.LEFT:
+        return ':' + '-' * (width + 1)
+    elif alignment == Alignment.CENTER:
+        return ':' + '-' * width + ':'
+    elif alignment == Alignment.RIGHT:
+        return '-' * (width + 1) + ':'
+    else:
+        raise ValueError(f"Unsupported alignment: {alignment}")
+
+
+def create_separator_row(col_widths: list[int], alignment: Sequence[Alignment]) -> str:
+    separators = [get_alignment_separator(alignment[idx], col_widths[idx]) for idx in range(len(col_widths))]
+    return "|" + "|".join(separators) + "|"
+
+
 def align_cell(cell, width, alignment) -> str:
     if alignment == Alignment.LEFT:
         return cell.ljust(width)
@@ -24,54 +49,35 @@ def align_and_format_row(row, col_widths, align) -> str:
     return "| " + " | ".join(aligned_row) + " |"
 
 
-def data_to_markdown_table(table: Sequence[Sequence[str]], align: Sequence[Alignment] = None,
-                           remove_empty_columns=False) -> list[str]:
+def data_to_markdown_table(table: Sequence[Sequence[str]], alignment: Sequence[Alignment] = None,
+                           remove_empty_cols=False) -> list[str]:
     if not table:
         return []
 
-    ltable = preprocess_table(table, remove_empty_columns)
+    processed_table = preprocess_table(table, remove_empty_cols)
+    num_cols = len(processed_table[0])
 
-    num_columns = len(ltable[0])
+    if alignment is None:
+        alignment = [Alignment.LEFT] * num_cols  # Default alignment is left
 
-    if align is None:
-        align = [Alignment.LEFT] * len(ltable[0])  # Default alignment is left
+    col_widths = calculate_column_widths(processed_table)
 
-    # Calculate the maximum width of each column
-    col_widths = [0] * num_columns
+    header_row = align_and_format_row(processed_table[0], col_widths, alignment)
+    separator_row = create_separator_row(col_widths, alignment)
 
-    for row in ltable:
-        for idx, cell in enumerate(row):
-            col_widths[idx] = max(col_widths[idx], len(cell))
+    data_rows = [align_and_format_row(row, col_widths, alignment) for row in processed_table[1:]]
 
-    # Build the header row
-    header_row = align_and_format_row(ltable[0], col_widths, align)
-
-    # Build the separator row with alignment
-    alignment_mapper = {
-        Alignment.LEFT: lambda width: ':' + '-' * (width + 1),
-        Alignment.CENTER: lambda width: ':' + '-' * (width + 0) + ':',
-        Alignment.RIGHT: lambda width: '-' * (width + 1) + ':'
-    }
-
-    separators = [alignment_mapper[align[idx]](col_widths[idx]) for idx in range(num_columns)]
-    separator_row = "|" + "|".join(separators) + "|"
-
-    # Build each data row
-    data_rows = [align_and_format_row(row, col_widths, align) for row in ltable[1:]]
-
-    # Combine all parts into the final Markdown table
     return [header_row, separator_row] + data_rows
 
 
 if __name__ == '__main__':
-    # Example usage
     test_data: list[list[str]] = [
         ["Header1", "Header2", "Header3"],
         ["Row1Col1", "Row1Col2", "Long Row1Col3"],
         ["Long Row2Col1", "Row2Col2", "Row2Col3"],
         ["Row3Col1", "LongerValue", "Row3Col3"]
     ]
-    test_align: list[Alignment] = [Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT]  # Alignment settings for each column
-    
+    test_align: list[Alignment] = [Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT]  
+
     markdown_table = '\n'.join(data_to_markdown_table(test_data, test_align))
     print(markdown_table)
