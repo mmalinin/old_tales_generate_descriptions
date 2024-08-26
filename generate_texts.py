@@ -75,7 +75,7 @@ def items_to_wiki_table(items: list[PlayableItem],
     return data_to_wiki_table(rows, remove_empty_columns=True)
 
 
-def process_markdown(sorted_items, loc, type_header) -> list[str]:
+def process_markdown(sorted_items: list[PlayableItem], loc: Locale, type_header) -> list[str]:
     type_str = sorted_items[0].get_item_type_str()
 
     # markdown is split into rarity sections

@@ -4,6 +4,10 @@ from typing import TypeVar
 
 _dummy_hero = "HERO_DUMMY_UNIT_TEST"
 
+_mob_key_suffix = "_MOB_"
+_hero_key_suffix = "_HERO_"
+_hidden_key_suffix = "_HIDDEN_"
+_test_item_suffix = "_TEST"
 
 def safe_get_text(element: ElementTree.Element, path: str, default: str = None) -> str | None:
     elem_node = element.find(path)
@@ -102,9 +106,10 @@ class Card(PlayableItem):
         self.armor = safe_get_int_value(element, ".//*add_armor")
 
         has_intention = element.find(".//visual//intention") is not None
-        self.is_mob = has_intention or "_MOB_" in self.key
 
-        self.is_hero = "_HERO_" in self.key
+        self.is_mob = has_intention or _mob_key_suffix in self.key
+
+        self.is_hero = _hero_key_suffix in self.key
 
     def get_item_type_str(self):
         return "CARD_TYPE"
@@ -158,7 +163,7 @@ class Config:
         only_visible_items = list(filter(lambda x: not x.hidden, items))
         only_visible_set = set(only_visible_items)
 
-        only_non_hidden_items = list(filter(lambda x: not ("_HIDDEN_" in x.key), only_visible_items))
+        only_non_hidden_items = list(filter(lambda x: not (_hidden_key_suffix in x.key), only_visible_items))
         only_non_hidden_set = set(only_non_hidden_items)
 
         incorrect_non_hidden = only_visible_set.difference(only_non_hidden_set)
@@ -176,8 +181,9 @@ class Config:
 
     def _process_items(self):
         # filter out any test and dummy heroes
+
         self.only_real_heroes: set[Unit] = set(
-            filter(lambda x: x.is_hero and x.key != _dummy_hero and "_TEST" not in x.key, self.units))
+            filter(lambda x: x.is_hero and x.key != _dummy_hero and _test_item_suffix not in x.key, self.units))
 
         # prepare hero name filters
         only_real_hero_names = set(map(lambda x: x.key, self.only_real_heroes))
